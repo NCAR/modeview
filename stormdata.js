@@ -1,4 +1,25 @@
 
+async function read_valid_dates()
+{
+    let date_filename = "https://storm-mode.s3.amazonaws.com/model_output/available_dates.csv";
+    let date_resp = await fetch(date_filename);
+    let date_str = await date_resp.text();
+    let run_date_strs = date_str.split("\n");
+    console.log(run_date_strs);
+    let dates = [];
+    for (let i=0; i< run_date_strs.length-1; i++) {
+        dates.push(new Date(Date.UTC(parseInt(run_date_strs[i].substring(0, 4)),
+                            parseInt(run_date_strs[i].substring(4, 6)) -1,
+                            parseInt(run_date_strs[i].substring(6, 8)),
+                            parseInt(run_date_strs[i].substring(8, 10)),
+                            parseInt(run_date_strs[i].substring(10, 12)))
+        ));
+    }
+    dates = dates.reverse();
+    console.log(dates);
+    return dates;
+}
+
 function date_range(start_date_str, end_date_str, date_diff_hours=24) {
     let start_date = new Date(start_date_str);
     let end_date = new Date(end_date_str);

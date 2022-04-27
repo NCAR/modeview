@@ -12,19 +12,20 @@
     model_map = {0: "CNN_1", 1: "DNN_1", 2: "SS"};
     modes = ["Supercell", "QLCS", "Disorganized"];
     mode_colors = ["YlOrRd", "YlGnBu", "Greys"];
-    let hrrr_json, hrrr_objs, run_dates, sel_forecast_hour;
+    let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour;
 
     async function init() {
-        let start_date_str = "2022-04-01T00:00:00+00:00";
-        let end_date_str = new Date(Date.now() - 3 * 3600000).toUTCString();
+        //let start_date_str = "2022-04-01T00:00:00+00:00";
+        //let end_date_str = new Date(Date.now() - 3 * 3600000).toUTCString();
         let time_diff_hours = 12;
         sel_forecast_hour = 1;
-        run_dates = date_range(start_date_str, end_date_str, time_diff_hours);
+        //run_dates = date_range(start_date_str, end_date_str, time_diff_hours);
+        run_dates = await read_valid_dates();
         console.log(run_dates);
         let date_sel = document.getElementById("date_sel");
         run_dates.forEach(function(rd) {
             let default_selected = false;
-            if (rd === new Date(end_date_str))
+            if (rd === new Date(run_dates[0]))
                 default_selected = true;
             let opt = new Option(rd.toUTCString(), rd.toUTCString(), default_selected, default_selected);
             date_sel.add(opt);
@@ -58,7 +59,7 @@
 
     async function load_json()
     {
-        let sel_date = document.getElementById("date_sel").value;
+        sel_date = document.getElementById("date_sel").value;
         update_prob_col();
         let hrrr_json_date = hrrr_json_date_str(sel_date);
         let hrrr_csv_date = hrrr_csv_date_str(sel_date);
@@ -97,8 +98,13 @@
     }
 
     function next_time() {
-        if (sel_forecast_hour >= 47)
-            sel_forecast_hour = 47;
+        let max_hour = 17;
+        let loc_sel_date = new Date(sel_date)
+        if ([0, 6, 12, 18].includes(loc_sel_date.getUTCHours())) {
+            max_hour = 47;
+        }
+        if (sel_forecast_hour >= max_hour)
+            sel_forecast_hour = max_hour;
         else
             sel_forecast_hour++;
         document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
@@ -131,7 +137,7 @@
     <option value="1">Model 2</option>
     <option value="2">Model 3</option>
 </select>
-<label for="model_sel">Storm Mode: </label><select id="mode_sel" name="mode_sel" onchange="update_mode()">
+<label for="mode_sel">Storm Mode: </label><select id="mode_sel" name="mode_sel" onchange="update_mode()">
     <option value="Supercell">Supercell</option>
     <option value="QLCS">QLCS</option>
     <option value="Disorganized">Disorganized</option>
