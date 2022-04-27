@@ -11,7 +11,7 @@
     let mode_probs, modes, mode_colors, layout, plot_data, prob_col;
     model_map = {0: "CNN_1", 1: "DNN_1", 2: "SS"};
     modes = ["Supercell", "QLCS", "Disorganized"];
-    mode_colors = ["YlOrRd", "YlGnBu", "Greys"];
+    mode_colors = {Supercell: "YlOrRd", QLCS: "YlGnBu", Disorganized: "Greys"};
     let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour, sel_model, sel_mode;
 
     async function init() {
@@ -83,12 +83,14 @@
                 locations: mode_probs_sel["index"],
                 z: mode_probs_sel[prob_col],
                 zmin: 0, zmax: 1,
-                colorscale: "RdBu",
+                reversescale: true,
+                marker: {opacity: 0.7},
+                colorscale: mode_colors[sel_mode],
                 showscale: true,
                 customdata: mode_probs_sel[sel_model + "_label"],
                 hovertemplate: template_str,
                 colorbar: {y: 0.1, len:0.8, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
-                title: {text: "Mode Probability", side: "right"}}}];
+                title: {text: "Probability of " + sel_mode, side: "right"}}}];
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
@@ -98,6 +100,8 @@
         update_prob_col();
         plot_data[0]["z"] = mode_probs_sel[prob_col];
         plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
+        plot_data[0]["colorscale"] = mode_colors[sel_mode];
+        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
@@ -115,6 +119,8 @@
         mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
         plot_data[0]["locations"] = mode_probs_sel["index"];
         plot_data[0]["z"] = mode_probs_sel[prob_col];
+        plot_data[0]["colorscale"] = mode_colors[sel_mode];
+        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
         plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
 
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
@@ -130,6 +136,8 @@
         plot_data[0]["locations"] = mode_probs_sel["index"];
         plot_data[0]["z"] = mode_probs_sel[prob_col];
         plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
+        plot_data[0]["colorscale"] = mode_colors[sel_mode];
+        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
