@@ -5,7 +5,6 @@ async function read_valid_dates()
     let date_resp = await fetch(date_filename);
     let date_str = await date_resp.text();
     let run_date_strs = date_str.split("\n");
-    console.log(run_date_strs);
     let dates = [];
     for (let i=0; i< run_date_strs.length-1; i++) {
         dates.push(new Date(Date.UTC(parseInt(run_date_strs[i].substring(0, 4)),
@@ -16,15 +15,12 @@ async function read_valid_dates()
         ));
     }
     dates = dates.reverse();
-    console.log(dates);
     return dates;
 }
 
 function date_range(start_date_str, end_date_str, date_diff_hours=24) {
     let start_date = new Date(start_date_str);
     let end_date = new Date(end_date_str);
-    console.log("start date", start_date);
-    console.log("end date", end_date);
     let hours_to_ms = 3600000;
     let curr_date = new Date(start_date);
     let dates = [];
@@ -57,7 +53,7 @@ function hrrr_csv_date_str(date_str) {
 
 async function read_csv(filename) {
     let data = {};
-    let str_cols = ["Valid_Date", "Run_Date", "Step_ID", "Track_ID", "SS_Label", "CNN_1_Label", "DNN_1_Label"];
+    let str_cols = ["Valid_Date", "Run_Date", "Step_ID", "Track_ID", "SS_label", "CNN_1_label", "DNN_1_label"];
     let int_cols = ["Forecast_Hour", "Duration"];
     await d3.csv(filename, function(row) {
         if (Object.keys(data).length === 0) {
@@ -84,6 +80,11 @@ async function read_csv(filename) {
 function filter_time(valid_time, time_arr, index_arr, data_arr) {
     let selected_data = {};
     selected_data["index"] = index_arr.filter(function (i) {return time_arr[i] === valid_time;});
+    selected_data["hovertext"] = [];
+    hover_cols = [["CNN_1_Supercell_prob", "CNN_1_QLCS_prob","CNN_1_Disorganized_prob"],
+                 ["DNN_1_Supercell_prob", "DNN_1_QLCS_prob", "DNN_1_Disorganized_prob"],
+                 ["SS_Supercell_prob", "SS_QLCS_prob", "SS_Disorganized_prob"]];
+
     Object.keys(data_arr).forEach(function(col) {selected_data[col] = [];});
     selected_data["index"].forEach(function (t)  {
         Object.keys(data_arr).forEach(function(col) {selected_data[col].push(data_arr[col][t]);});
