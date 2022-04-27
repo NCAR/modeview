@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>ML Storm Viewer</title>
+</head>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
+<script>
+    let grid, grid_cells, mode_probs, ml_models, modes, mode_colors, coords, plot_data_scatter, layout, plot_data;
+    ml_models = ["CNN_1", "SS", "DNN_1"];
+    model_map = {0: "CNN_1", 1: "SS", 2: "DNN_1"};
+    modes = ["Supercell", "QLCS", "Disorganized"];
+    mode_colors = ["YlOrRd", "YlGnBu", "Greys"];
+    model_symbols = ["circle", "square", "triangle-left"];
+    async function init()
+    {
+
+        grid = await d3.json("NCEP_211_staggered_polygons.json");
+        grid_cells = [];
+        for (let i=0; i<grid.features.length; i++)
+        {
+            grid.features[i].id = String(i);
+            grid_cells[i] = String(i);
+        }
+
+        let valid_date = new Date(document.getElementById("date_sel").value);
+        //let valid_date = new Date("2019-05-02T02:00:00+00:00");
+        let min_lag = 2;
+        let max_lag = 10;
+        let local_out = await load_valid_hrrr_members(valid_date, min_lag, max_lag);
+        mode_probs = local_out["mode_probs"];
+        coords = local_out["coords"];
+        console.log(coords);
+        console.log(mode_probs);
+        await load_date();
+    }
+
+    async function load_valid_hrrr_members(valid_time, min_lag_hours, max_lag_hours)
+    {
+        let init_times = [];
+        let forecast_hours = [];
+        let total_mode_probs, local_coords;
+        let n = 0;
+        for (let lag=min_lag_hours; lag<=max_lag_hours; lag++)
+        {
+            init_times.push(new Date(valid_time - lag * 3600000));
+            forecast_hours.push(lag);
+            let output = await load_hrrr_valid_csv(init_times[n], forecast_hours[n]);
+            if (n === 0) {
+                local_coords = output["coords"];
+                total_mode_probs = output["mode_probs"];
+            }
+            else {
+                Object.keys(total_mode_probs).forEach(function (col) {
+                    total_mode_probs[col] = total_mode_probs[col].map(function (num, idx) {
+                        return num + output["mode_probs"][col][idx]
+                    });
+                });
+            }
+            n++;
+        }
+        Object.keys(total_mode_probs).forEach( function(col) {
+            total_mode_probs[col] = total_mode_probs[col].map(function(num, idx) {return num / n});
+        });
+        final_output = {"mode_probs": total_mode_probs, "coords": local_coords};
+        return final_output;
+    }
+
+    async function load_hrrr_valid_csv(init_time, forecast_hour)
+    {
+        let init_date_str = String(init_time.getUTCFullYear());
+        init_date_str += String(init_time.getUTCMonth() + 1).padStart(2, "0");
+        init_date_str += String(init_time.getUTCDate()).padStart(2, "0");
+        init_date_str += String(init_time.getUTCHours()).padStart(2, "0") + "00";
+        console.log(String(init_time.getUTCHours()).padStart(2, "0"));
+        console.log(init_date_str);
+        let fh_str = String(forecast_hour).padStart(2, "0");
+        let filename = "https://storm-mode.s3.us-west-2.amazonaws.com/" + init_date_str +
+            "/label_probabilities_" + init_date_str + "_fh_" + fh_str + ".csv";
+        console.log(filename);
+        let loaded_coords = {lon: [], lat: [], init_time: [], valid_time: []};
+        let loaded_mode_probs = {};
+        for (let model_i=0; model_i < ml_models.length; model_i++) {
+            for (let mode_j = 0; mode_j < modes.length; mode_j++) {
+                let col_name = ml_models[model_i] + "_" + modes[mode_j];
+                loaded_mode_probs[col_name] = [];
+            }
+        }
+        await d3.csv(filename,
+            function(row) {
+                Object.keys(loaded_coords).forEach(
+                    function(c){
+                        if (["lon", "lat"].includes(c))
+                            loaded_coords[c].push(parseFloat(row[c]));
+                        else
+                            loaded_coords[c].push(new Date(row[c]));
+                    }
+                )
+                for (let model_i=0; model_i < ml_models.length; model_i++) {
+                    for (let mode_j=0; mode_j < modes.length; mode_j++) {
+                        let col_name = ml_models[model_i] + "_" + modes[mode_j] + "_nprob";
+                        loaded_mode_probs[ml_models[model_i] + "_" + modes[mode_j]].push(parseFloat(row[col_name]));
+                    }
+                }
+            });
+        let output = {"mode_probs": loaded_mode_probs, "coords": loaded_coords};
+        return output;
+    }
+
+    async function load_date()
+    {
+        let selected_probs = {};
+        let selected_index = {};
+        let selected_coords = {};
+        plot_data = [];
+        plot_data_scatter = [];
+        for (let model_i=0; model_i < ml_models.length; model_i++) {
+            for (let mode_j = 0; mode_j < modes.length; mode_j++) {
+                let col_name = ml_models[model_i] + "_" + modes[mode_j];
+                let rand_lon = 1 * (2 * Math.random() - 1);
+                let rand_lat = 1 * (2 * Math.random() - 1);
+                selected_probs[col_name] = [];
+                selected_coords[col_name] = {lon: [], lat: []};
+                selected_index[col_name] = grid_cells.filter(function(v) {return mode_probs[col_name][v] >= 0.01});
+                selected_index[col_name].forEach(function(s) {
+                    selected_probs[col_name].push(mode_probs[col_name][s]);
+                    selected_coords[col_name]["lon"].push(coords["lon"][s] + rand_lon);
+                    selected_coords[col_name]["lat"].push(coords["lat"][s] + rand_lat);
+
+                });
+                plot_data.push({type: "choroplethmapbox", name: col_name, geojson: grid,
+                                featureidkey: "id", locations: selected_index[col_name],
+                                z: selected_probs[col_name], zmin: 0, zmax: 0.5, colorscale: mode_colors[mode_j],
+                                marker: {line: {color: "white", width:0.5}, opacity: 0.2}});
+                plot_data_scatter.push({type: "scattergeo", name: col_name, mode: "markers",
+                    lon: selected_coords[col_name]["lon"],
+                    lat: selected_coords[col_name]["lat"],
+                    visible: true,
+                    marker: { color: selected_probs[col_name], size: 5, cmin: 0, cmax: 0.2,
+                              colorscale: mode_colors[mode_j], reversescale: false, symbol: model_symbols[model_i]},
+                hovertext: selected_probs[col_name]});
+            }
+
+        }
+        layout = {
+        width: 1000,
+        height: 700,
+        margin: {t: 50, l: 20, b: 20, r: 20},
+        title: "Storm Mode",
+        geo: {
+            scope: 'north america',
+            resolution: 50,
+            lonaxis: {
+                'range': [-130, -55]
+            },
+            lataxis: {
+                'range': [20, 60]
+            },
+            showrivers: false,
+            rivercolor: '#0bf',
+            showocean: true,
+            oceancolor: "#0bf",
+            showlakes: true,
+            lakecolor: '#0bf',
+            showland: true,
+            landcolor: '#eee',
+            countrycolor: '#d3d3d3',
+            countrywidth: 1.5,
+            subunitcolor: '#d3d3d3'
+        }
+    };
+        console.log(plot_data_scatter);
+        Plotly.react(document.getElementById("mapview"), plot_data_scatter, layout);
+    }
+</script>
+
+<body onload="init()">
+<label for="date_sel">Date: </label><select id="date_sel" name="date_sel" onchange="init()">
+    <option value="2019-05-01T21:00:00+00:00">2019-05-01 2100 UTC</option>
+    <option value="2019-05-01T22:00:00+00:00">2019-05-01 2200 UTC</option>
+    <option value="2019-05-01T23:00:00+00:00">2019-05-01 2300 UTC</option>
+    <option value="2019-05-02T00:00:00+00:00">2019-05-02 0000 UTC</option>
+    <option value="2019-05-02T01:00:00+00:00">2019-05-02 0100 UTC</option>
+    <option value="2019-05-02T02:00:00+00:00">2019-05-02 0200 UTC</option>
+</select>
+<button id="prev_hour">-1 Hour</button>
+<button id="next_hour">+1 Hour</button>
+<button id="model_1">Model 1</button>
+<button id="model_2">Model 2</button>
+<button id="model_3">Model 3</button>
+<div id="mapview">
+</div>
+
+</body>
+</html>

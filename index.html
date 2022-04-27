@@ -1,188 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>ML Storm Viewer</title>
+<title>ML Storm Mode</title>
 </head>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
+<script src="stormdata.js"></script>
 <script>
-    let grid, grid_cells, mode_probs, ml_models, modes, mode_colors, coords, plot_data_scatter, layout, plot_data;
-    ml_models = ["CNN_1", "SS", "DNN_1"];
-    modes = ["Supercell", "QLCS"];
+    let mode_probs, modes, mode_colors, layout, plot_data, prob_col;
+    model_map = {0: "CNN_1", 1: "DNN_1", 2: "SS"};
+    modes = ["Supercell", "QLCS", "Disorganized"];
     mode_colors = ["YlOrRd", "YlGnBu", "Greys"];
-    model_symbols = ["circle", "square", "triangle-left"];
-    async function init()
-    {
+    let hrrr_json, hrrr_objs, run_dates, sel_forecast_hour;
 
-        grid = await d3.json("NCEP_211_staggered_polygons.json");
-        grid_cells = [];
-        for (let i=0; i<grid.features.length; i++)
-        {
-            grid.features[i].id = String(i);
-            grid_cells[i] = String(i);
-        }
-
-        let valid_date = new Date(document.getElementById("date_sel").value);
-        //let valid_date = new Date("2019-05-02T02:00:00+00:00");
-        let min_lag = 2;
-        let max_lag = 10;
-        let local_out = await load_valid_hrrr_members(valid_date, min_lag, max_lag);
-        mode_probs = local_out["mode_probs"];
-        coords = local_out["coords"];
-        console.log(coords);
-        console.log(mode_probs);
-        await load_date();
-    }
-
-    async function load_valid_hrrr_members(valid_time, min_lag_hours, max_lag_hours)
-    {
-        let init_times = [];
-        let forecast_hours = [];
-        let total_mode_probs, local_coords;
-        let n = 0;
-        for (let lag=min_lag_hours; lag<=max_lag_hours; lag++)
-        {
-            init_times.push(new Date(valid_time - lag * 3600000));
-            forecast_hours.push(lag);
-            let output = await load_hrrr_valid_csv(init_times[n], forecast_hours[n]);
-            if (n === 0) {
-                local_coords = output["coords"];
-                total_mode_probs = output["mode_probs"];
-            }
-            else {
-                Object.keys(total_mode_probs).forEach(function (col) {
-                    total_mode_probs[col] = total_mode_probs[col].map(function (num, idx) {
-                        return num + output["mode_probs"][col][idx]
-                    });
-                });
-            }
-            n++;
-        }
-        Object.keys(total_mode_probs).forEach( function(col) {
-            total_mode_probs[col] = total_mode_probs[col].map(function(num, idx) {return num / n});
+    async function init() {
+        let start_date_str = "2022-04-01T00:00:00+00:00";
+        let end_date_str = new Date(Date.now() - 3 * 3600000).toUTCString();
+        let time_diff_hours = 12;
+        sel_forecast_hour = 1;
+        run_dates = date_range(start_date_str, end_date_str, time_diff_hours);
+        console.log(run_dates);
+        let date_sel = document.getElementById("date_sel");
+        run_dates.forEach(function(rd) {
+            let default_selected = false;
+            if (rd === new Date(end_date_str))
+                default_selected = true;
+            let opt = new Option(rd.toUTCString(), rd.toUTCString(), default_selected, default_selected);
+            date_sel.add(opt);
         });
-        final_output = {"mode_probs": total_mode_probs, "coords": local_coords};
-        return final_output;
-    }
-
-    async function load_hrrr_valid_csv(init_time, forecast_hour)
-    {
-        let init_date_str = String(init_time.getUTCFullYear());
-        init_date_str += String(init_time.getUTCMonth() + 1).padStart(2, "0");
-        init_date_str += String(init_time.getUTCDate()).padStart(2, "0");
-        init_date_str += String(init_time.getUTCHours()).padStart(2, "0") + "00";
-        console.log(String(init_time.getUTCHours()).padStart(2, "0"));
-        console.log(init_date_str);
-        let fh_str = String(forecast_hour).padStart(2, "0");
-        let filename = "https://storm-mode.s3.us-west-2.amazonaws.com/" + init_date_str +
-            "/label_probabilities_" + init_date_str + "_fh_" + fh_str + ".csv";
-        console.log(filename);
-        let loaded_coords = {lon: [], lat: [], init_time: [], valid_time: []};
-        let loaded_mode_probs = {};
-        for (let model_i=0; model_i < ml_models.length; model_i++) {
-            for (let mode_j = 0; mode_j < modes.length; mode_j++) {
-                let col_name = ml_models[model_i] + "_" + modes[mode_j];
-                loaded_mode_probs[col_name] = [];
+        document.addEventListener('keypress', function(event) {
+            let code = event.code;
+            if (code === "Period")
+            {
+                next_time();
             }
-        }
-        await d3.csv(filename,
-            function(row) {
-                Object.keys(loaded_coords).forEach(
-                    function(c){
-                        if (["lon", "lat"].includes(c))
-                            loaded_coords[c].push(parseFloat(row[c]));
-                        else
-                            loaded_coords[c].push(new Date(row[c]));
-                    }
-                )
-                for (let model_i=0; model_i < ml_models.length; model_i++) {
-                    for (let mode_j=0; mode_j < modes.length; mode_j++) {
-                        let col_name = ml_models[model_i] + "_" + modes[mode_j] + "_nprob";
-                        loaded_mode_probs[ml_models[model_i] + "_" + modes[mode_j]].push(parseFloat(row[col_name]));
-                    }
-                }
-            });
-        let output = {"mode_probs": loaded_mode_probs, "coords": loaded_coords};
-        return output;
+            if (code === "Comma"){
+                prev_time();
+            }}, false);
+        layout = {width: 1000,
+                  height: 700,
+                  margin: {t: 50, l: 20, b: 20, r: 20},
+                  title: "HRRR Machine Learning Storm Mode",
+                  mapbox: {center: {lon: -96, lat: 34},
+                            zoom: 3,
+                            style: "open-street-map",
+                            }};
+        load_json();
     }
 
-    async function load_date()
+    function update_prob_col()
     {
-        let selected_probs = {};
-        let selected_index = {};
-        let selected_coords = {};
-        plot_data = [];
-        plot_data_scatter = [];
-        for (let model_i=0; model_i < ml_models.length; model_i++) {
-            for (let mode_j = 0; mode_j < modes.length; mode_j++) {
-                let col_name = ml_models[model_i] + "_" + modes[mode_j];
-                let rand_lon = 1 * (2 * Math.random() - 1);
-                let rand_lat = 1 * (2 * Math.random() - 1);
-                selected_probs[col_name] = [];
-                selected_coords[col_name] = {lon: [], lat: []};
-                selected_index[col_name] = grid_cells.filter(function(v) {return mode_probs[col_name][v] >= 0.01});
-                selected_index[col_name].forEach(function(s) {
-                    selected_probs[col_name].push(mode_probs[col_name][s]);
-                    selected_coords[col_name]["lon"].push(coords["lon"][s] + rand_lon);
-                    selected_coords[col_name]["lat"].push(coords["lat"][s] + rand_lat);
-
-                });
-                plot_data.push({type: "choroplethmapbox", name: col_name, geojson: grid,
-                                featureidkey: "id", locations: selected_index[col_name],
-                                z: selected_probs[col_name], zmin: 0, zmax: 0.5, colorscale: mode_colors[mode_j],
-                                marker: {line: {color: "white", width:0.5}, opacity: 0.2}});
-                plot_data_scatter.push({type: "scattergeo", name: col_name, mode: "markers",
-                    lon: selected_coords[col_name]["lon"],
-                    lat: selected_coords[col_name]["lat"],
-                    visible: true,
-                    marker: { color: selected_probs[col_name], size: 5, cmin: 0, cmax: 0.2,
-                              colorscale: mode_colors[mode_j], reversescale: false, symbol: model_symbols[model_i]},
-                hovertext: selected_probs[col_name]});
-            }
-
-        }
-        layout = {
-        width: 1000,
-        height: 700,
-        margin: {t: 50, l: 20, b: 20, r: 20},
-        title: "Storm Mode",
-        geo: {
-            scope: 'north america',
-            resolution: 50,
-            lonaxis: {
-                'range': [-130, -55]
-            },
-            lataxis: {
-                'range': [20, 60]
-            },
-            showrivers: false,
-            rivercolor: '#0bf',
-            showocean: true,
-            oceancolor: "#0bf",
-            showlakes: true,
-            lakecolor: '#0bf',
-            showland: true,
-            landcolor: '#eee',
-            countrycolor: '#d3d3d3',
-            countrywidth: 1.5,
-            subunitcolor: '#d3d3d3'
-        }
-    };
-        console.log(plot_data_scatter);
-        Plotly.react(document.getElementById("mapview"), plot_data_scatter, layout);
+        let sel_model = model_map[parseInt(document.getElementById("model_sel").value)];
+        let sel_mode = document.getElementById("mode_sel").value;
+        prob_col = sel_model + "_" + sel_mode + "_prob";
     }
+
+    async function load_json()
+    {
+        let sel_date = document.getElementById("date_sel").value;
+        update_prob_col();
+        let hrrr_json_date = hrrr_json_date_str(sel_date);
+        let hrrr_csv_date = hrrr_csv_date_str(sel_date);
+        let json_filename = "https://storm-mode.s3.amazonaws.com/track_data_hrrr_3km_json_refl/HRRR-ZARR_oper_" + hrrr_json_date + ".json";
+        let csv_filename = "https://storm-mode.s3.amazonaws.com/model_output/labels/model_labels_" + hrrr_csv_date + ".csv";
+        hrrr_json = await d3.json(json_filename);
+        hrrr_objs = [];
+        for (let i=0; i<hrrr_json.features.length; i++)
+        {
+            hrrr_json.features[i].id = String(i);
+            hrrr_objs[i] = String(i);
+        }
+        mode_probs = await read_csv(csv_filename);
+        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
+        document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
+        plot_data = [{
+                type: "choroplethmapbox", name: "Supercell Objects",
+                geojson: hrrr_json,
+                featureidkey: "id",
+                locations: mode_probs_sel["index"],
+                z: mode_probs_sel[prob_col], zmin: 0, zmax: 1,
+                colorscale: "RdBu",
+                colorbar: {y: 0.1, len:0.8, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
+                title: {text: "Mode Probability", side: "right"}}}];
+
+        console.log(hrrr_json);
+        Plotly.react(document.getElementById("mapview"), plot_data, layout);
+    }
+
+
+
+    function update_mode(){
+        update_prob_col();
+        plot_data[0]["z"] = mode_probs_sel[prob_col];
+        Plotly.react(document.getElementById("mapview"), plot_data, layout);
+    }
+
+    function next_time() {
+        if (sel_forecast_hour >= 47)
+            sel_forecast_hour = 47;
+        else
+            sel_forecast_hour++;
+        document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
+        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
+        plot_data[0]["locations"] = mode_probs_sel["index"];
+        plot_data[0]["z"] = mode_probs_sel[prob_col];
+        Plotly.react(document.getElementById("mapview"), plot_data, layout);
+    }
+
+    function prev_time() {
+        if (sel_forecast_hour <= 1)
+            sel_forecast_hour = 1;
+        else
+            sel_forecast_hour--;
+        document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
+        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
+        plot_data[0]["locations"] = mode_probs_sel["index"];
+        plot_data[0]["z"] = mode_probs_sel[prob_col];
+        Plotly.react(document.getElementById("mapview"), plot_data, layout);
+    }
+
+
 </script>
 
 <body onload="init()">
-<label for="date_sel">Date: </label><select id="date_sel" name="date_sel" onchange="init()">
-    <option value="2019-05-01T21:00:00+00:00">2019-05-01 2100 UTC</option>
-    <option value="2019-05-01T22:00:00+00:00">2019-05-01 2200 UTC</option>
-    <option value="2019-05-01T23:00:00+00:00">2019-05-01 2300 UTC</option>
-    <option value="2019-05-02T00:00:00+00:00">2019-05-02 0000 UTC</option>
-    <option value="2019-05-02T01:00:00+00:00">2019-05-02 0100 UTC</option>
-    <option value="2019-05-02T02:00:00+00:00">2019-05-02 0200 UTC</option>
+<label for="date_sel">Date: </label><select id="date_sel" name="date_sel" onchange="load_json()">
 </select>
+<label for="model_sel">ML Model: </label><select id="model_sel" name="model_sel" onchange="update_mode()">
+    <option value="0">Model 1</option>
+    <option value="1">Model 2</option>
+    <option value="2">Model 3</option>
+</select>
+<label for="model_sel">Storm Mode: </label><select id="mode_sel" name="mode_sel" onchange="update_mode()">
+    <option value="Supercell">Supercell</option>
+    <option value="QLCS">QLCS</option>
+    <option value="Disorganized">Disorganized</option>
+</select>
+<label for="fh">Forecast Hour: </label><label id="fh">1</label>
+<button id="prev_hour" onclick="prev_time()">-1 Hour</button>
+<button id="next_hour" onclick="next_time()">+1 Hour</button>
+
 <div id="mapview">
 </div>
 
