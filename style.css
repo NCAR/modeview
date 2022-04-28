@@ -1,0 +1,15 @@
+button {
+    background-color: lightskyblue;
+    color: black;
+    text-align: center;
+    height: 30px;
+    font-size: large;
+}
+label {
+    font-size: larger;
+    font-family: Arial, Helvetica, sans-serif;
+}
+select {
+    font-size: larger;
+    font-family: Arial, Helvetica, sans-serif;
+}

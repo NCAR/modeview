@@ -53,18 +53,18 @@
     function update_prob_col()
     {
         sel_model = model_map[parseInt(document.getElementById("model_sel").value)];
-        sel_mode = document.getElementById("mode_sel").value;
-        prob_col = sel_model + "_" + sel_mode + "_prob";
     }
 
     async function load_json()
     {
         sel_date = document.getElementById("date_sel").value;
+        document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
         update_prob_col();
         let hrrr_json_date = hrrr_json_date_str(sel_date);
         let hrrr_csv_date = hrrr_csv_date_str(sel_date);
         let json_filename = "https://storm-mode.s3.amazonaws.com/track_data_hrrr_3km_json_refl/HRRR-ZARR_oper_" + hrrr_json_date + ".json";
         let csv_filename = "https://storm-mode.s3.amazonaws.com/model_output/labels/model_labels_" + hrrr_csv_date + ".csv";
+        let template_str = "%{customdata}"
         hrrr_json = await d3.json(json_filename);
         hrrr_objs = [];
         for (let i=0; i<hrrr_json.features.length; i++)
@@ -73,25 +73,33 @@
             hrrr_objs[i] = String(i);
         }
         mode_probs = await read_csv(csv_filename);
-        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
-        document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
-        let template_str = "Prob: %{z:0.2f} Label: %{customdata}"
-        plot_data = [{
+        mode_probs_sel = {};
+        plot_data = [];
+        c_bar_y = 0.1;
+        modes.forEach(function(mode) {
+            mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
+                mode_probs["Forecast_Hour"],
+                mode_probs[sel_model + "_label"],
+                hrrr_objs, mode_probs);
+            let mode_prob_col = sel_model + "_" + mode + "_prob";
+            plot_data.push({
                 type: "choroplethmapbox",
-                name: "Mode Probability",
+                name: mode,
                 geojson: hrrr_json,
                 featureidkey: "id",
-                locations: mode_probs_sel["index"],
-                z: mode_probs_sel[prob_col],
+                locations: mode_probs_sel[mode]["index"],
+                z: mode_probs_sel[mode][mode_prob_col],
                 zmin: 0, zmax: 1,
                 reversescale: true,
                 marker: {opacity: 0.7},
-                colorscale: mode_colors[sel_mode],
+                colorscale: mode_colors[mode],
                 showscale: true,
-                customdata: mode_probs_sel[sel_model + "_label"],
+                customdata: mode_probs_sel[mode]["hovertext"],
                 hovertemplate: template_str,
-                colorbar: {y: 0.1, len:0.8, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
-                title: {text: "Probability of " + sel_mode, side: "right"}}}];
+                colorbar: {y: c_bar_y, len:0.3, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
+                title: {text: "Probability of " + mode, side: "right"}}});
+            c_bar_y += 0.3;
+        });
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
@@ -99,16 +107,24 @@
 
     function update_mode(){
         update_prob_col();
-        plot_data[0]["z"] = mode_probs_sel[prob_col];
-        plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
-        plot_data[0]["colorscale"] = mode_colors[sel_mode];
-        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
+        let m = 0;
+        modes.forEach(function(mode) {
+            mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
+                mode_probs["Forecast_Hour"],
+                mode_probs[sel_model + "_label"],
+                hrrr_objs, mode_probs);
+            let mode_prob_col = sel_model + "_" + mode + "_prob";
+            plot_data[m]["locations"] = mode_probs_sel[mode]["index"];
+            plot_data[m]["z"] = mode_probs_sel[mode][mode_prob_col];
+            plot_data[m]["customdata"] = mode_probs_sel[mode]["hovertext"];
+            m++;
+        });
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
     function next_time() {
         let max_hour = 17;
-        let loc_sel_date = new Date(sel_date)
+        let loc_sel_date = new Date(sel_date);
         if ([0, 6, 12, 18].includes(loc_sel_date.getUTCHours())) {
             max_hour = 47;
         }
@@ -117,13 +133,18 @@
         else
             sel_forecast_hour++;
         document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
-        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
-        plot_data[0]["locations"] = mode_probs_sel["index"];
-        plot_data[0]["z"] = mode_probs_sel[prob_col];
-        plot_data[0]["colorscale"] = mode_colors[sel_mode];
-        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
-        plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
-
+        let m = 0;
+        modes.forEach(function(mode) {
+            mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
+                mode_probs["Forecast_Hour"],
+                mode_probs[sel_model + "_label"],
+                hrrr_objs, mode_probs);
+            let mode_prob_col = sel_model + "_" + mode + "_prob";
+            plot_data[m]["locations"] = mode_probs_sel[mode]["index"];
+            plot_data[m]["z"] = mode_probs_sel[mode][mode_prob_col];
+            plot_data[m]["customdata"] = mode_probs_sel[mode]["hovertext"];
+            m++;
+        });
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
@@ -133,12 +154,18 @@
         else
             sel_forecast_hour--;
         document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
-        mode_probs_sel = filter_time(sel_forecast_hour, mode_probs["Forecast_Hour"], hrrr_objs, mode_probs);
-        plot_data[0]["locations"] = mode_probs_sel["index"];
-        plot_data[0]["z"] = mode_probs_sel[prob_col];
-        plot_data[0]["customdata"] = mode_probs_sel[sel_model + "_label"];
-        plot_data[0]["colorscale"] = mode_colors[sel_mode];
-        plot_data[0]["colorbar"]["title"]["text"] = "Probability of " + sel_mode;
+        let m = 0;
+        modes.forEach(function(mode) {
+            mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
+                mode_probs["Forecast_Hour"],
+                mode_probs[sel_model + "_label"],
+                hrrr_objs, mode_probs);
+            let mode_prob_col = sel_model + "_" + mode + "_prob";
+            plot_data[m]["locations"] = mode_probs_sel[mode]["index"];
+            plot_data[m]["z"] = mode_probs_sel[mode][mode_prob_col];
+            plot_data[m]["customdata"] = mode_probs_sel[mode]["hovertext"];
+            m++;
+        });
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
     }
 
@@ -152,11 +179,6 @@
     <option value="0">Model 1</option>
     <option value="1">Model 2</option>
     <option value="2">Model 3</option>
-</select>
-<label for="mode_sel">Storm Mode: </label><select id="mode_sel" name="mode_sel" onchange="update_mode()">
-    <option value="Supercell">Supercell</option>
-    <option value="QLCS">QLCS</option>
-    <option value="Disorganized">Disorganized</option>
 </select>
 <label for="fh">Forecast Hour: </label><label id="fh">1</label>
 <button id="prev_hour" onclick="prev_time()">-1 Hour</button>

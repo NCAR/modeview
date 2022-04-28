@@ -80,14 +80,29 @@ async function read_csv(filename) {
 function filter_time(valid_time, time_arr, index_arr, data_arr) {
     let selected_data = {};
     selected_data["index"] = index_arr.filter(function (i) {return time_arr[i] === valid_time;});
-    selected_data["hovertext"] = [];
-    hover_cols = [["CNN_1_Supercell_prob", "CNN_1_QLCS_prob","CNN_1_Disorganized_prob"],
-                 ["DNN_1_Supercell_prob", "DNN_1_QLCS_prob", "DNN_1_Disorganized_prob"],
-                 ["SS_Supercell_prob", "SS_QLCS_prob", "SS_Disorganized_prob"]];
-
     Object.keys(data_arr).forEach(function(col) {selected_data[col] = [];});
     selected_data["index"].forEach(function (t)  {
         Object.keys(data_arr).forEach(function(col) {selected_data[col].push(data_arr[col][t]);});
     });
+    return selected_data;
+}
+
+function filter_time_and_mode(valid_time, mode, time_arr, mode_arr, index_arr, data_arr) {
+    let selected_data = {};
+    selected_data["index"] = index_arr.filter(function (i) {return (time_arr[i] === valid_time) && (mode_arr[i] === mode);});
+    selected_data["hovertext"] = [];
+    hover_cols = [["CNN_1_Supercell_prob", "CNN_1_QLCS_prob","CNN_1_Disorganized_prob"],
+                 ["DNN_1_Supercell_prob", "DNN_1_QLCS_prob", "DNN_1_Disorganized_prob"],
+                 ["SS_Supercell_prob", "SS_QLCS_prob", "SS_Disorganized_prob"]];
+    Object.keys(data_arr).forEach(function(col) {selected_data[col] = [];});
+    selected_data["index"].forEach(function (t)  {
+        Object.keys(data_arr).forEach(function(col) {selected_data[col].push(data_arr[col][t]);});
+        let hover_str = "S: " + data_arr[sel_model + "_Supercell_prob"][t].toFixed(2) + " ";
+        hover_str += "L: " + data_arr[sel_model + "_QLCS_prob"][t].toFixed(2) + " ";
+        hover_str += "D: "  + data_arr[sel_model + "_Disorganized_prob"][t].toFixed(2);
+        selected_data["hovertext"].push(hover_str);
+
+    });
+
     return selected_data;
 }
