@@ -1,15 +1,27 @@
 button {
     background-color: lightskyblue;
     color: black;
-    text-align: center;
     height: 30px;
+    text-align: center;
     font-size: large;
 }
 label {
-    font-size: larger;
+    font-size: large;
     font-family: Arial, Helvetica, sans-serif;
 }
 select {
-    font-size: larger;
+    font-size: large;
     font-family: Arial, Helvetica, sans-serif;
+}
+#menubar {
+    width: 800px;
+    height: 80px;
+    justify-content: center;
+    text-align: center;
+
+}
+#mapholder {
+    text-align: center;
+    justify-content: center;
+
 }

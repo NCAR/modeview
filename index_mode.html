@@ -13,7 +13,7 @@
     model_map = {0: "CNN_1", 1: "DNN_1", 2: "SS"};
     modes = ["Supercell", "QLCS", "Disorganized"];
     mode_colors = {Supercell: "YlOrRd", QLCS: "YlGnBu", Disorganized: "Greys"};
-    let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour, sel_model, sel_mode;
+    let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour, sel_model, sel_mode, valid_time;
 
     async function init() {
         //let start_date_str = "2022-04-01T00:00:00+00:00";
@@ -39,8 +39,9 @@
             if (code === "Comma"){
                 prev_time();
             }}, false);
-        layout = {width: 1000,
-                  height: 700,
+        layout = {
+                  height: 600,
+                  width: 800,
                   margin: {t: 50, l: 20, b: 20, r: 20},
                   title: "HRRR Machine Learning Storm Mode",
                   mapbox: {center: {lon: -96, lat: 34},
@@ -76,6 +77,9 @@
         mode_probs_sel = {};
         plot_data = [];
         c_bar_y = 0.1;
+        let loc_sel_date = new Date(sel_date);
+        valid_time = new Date(loc_sel_date.getTime() + sel_forecast_hour * 3600000);
+        layout["title"] = "NCAR HRRR ML Storm Mode Valid " + valid_time.toUTCString();
         modes.forEach(function(mode) {
             mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
                 mode_probs["Forecast_Hour"],
@@ -123,8 +127,8 @@
     }
 
     function next_time() {
-        let max_hour = 17;
         let loc_sel_date = new Date(sel_date);
+        let max_hour = 17;
         if ([0, 6, 12, 18].includes(loc_sel_date.getUTCHours())) {
             max_hour = 47;
         }
@@ -134,6 +138,9 @@
             sel_forecast_hour++;
         document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
         let m = 0;
+
+        valid_time = new Date(loc_sel_date.getTime() + sel_forecast_hour * 3600000);
+        layout["title"] = "NCAR HRRR ML Storm Mode Valid " + valid_time.toUTCString();
         modes.forEach(function(mode) {
             mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
                 mode_probs["Forecast_Hour"],
@@ -149,11 +156,14 @@
     }
 
     function prev_time() {
+        let loc_sel_date = new Date(sel_date);
         if (sel_forecast_hour <= 1)
             sel_forecast_hour = 1;
         else
             sel_forecast_hour--;
         document.getElementById("fh").innerHTML = String(sel_forecast_hour).padStart(2, "0");
+        valid_time = new Date(loc_sel_date.getTime() + sel_forecast_hour * 3600000);
+        layout["title"] = "NCAR HRRR ML Storm Mode Valid " + valid_time.toUTCString();
         let m = 0;
         modes.forEach(function(mode) {
             mode_probs_sel[mode] = filter_time_and_mode(sel_forecast_hour, mode,
@@ -173,18 +183,25 @@
 </script>
 
 <body onload="init()">
-<label for="date_sel">Date: </label><select id="date_sel" name="date_sel" onchange="load_json()">
-</select>
-<label for="model_sel">ML Model: </label><select id="model_sel" name="model_sel" onchange="update_mode()">
-    <option value="0">Model 1</option>
-    <option value="1">Model 2</option>
-    <option value="2">Model 3</option>
-</select>
-<label for="fh">Forecast Hour: </label><label id="fh">1</label>
-<button id="prev_hour" onclick="prev_time()">-1 Hour</button>
-<button id="next_hour" onclick="next_time()">+1 Hour</button>
-
-<div id="mapview">
+<div id="menubar">
+    <label for="date_sel">Date: </label>
+    <select id="date_sel" name="date_sel" onchange="load_json()">
+    </select>
+    <label for="model_sel">ML Model: </label>
+    <select id="model_sel" name="model_sel" onchange="update_mode()">
+        <option value="0">Model 1</option>
+        <option value="1">Model 2</option>
+        <option value="2">Model 3</option>
+    </select>
+    <br>
+    <br>
+    <label for="fh">Forecast Hour: </label><label id="fh">1</label>
+    <button id="prev_hour" onclick="prev_time()">-1 Hour</button>
+    <button id="next_hour" onclick="next_time()">+1 Hour</button>
+</div>
+<div id="mapholder">
+    <div id="mapview">
+    </div>
 </div>
 
 </body>
