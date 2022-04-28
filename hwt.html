@@ -17,7 +17,7 @@
 
     async function init() {
         sel_forecast_hour = 1;
-        run_dates = await read_valid_dates();
+        run_dates = await read_valid_dates(valid_init_hours=[12]);
         let date_sel = document.getElementById("date_sel");
         run_dates.forEach(function(rd) {
             let default_selected = false;

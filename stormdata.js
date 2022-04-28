@@ -1,5 +1,5 @@
 
-async function read_valid_dates()
+async function read_valid_dates(valid_init_hours=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
 {
     let date_filename = "https://storm-mode.s3.amazonaws.com/model_output/available_dates.csv";
     let date_resp = await fetch(date_filename);
@@ -14,6 +14,7 @@ async function read_valid_dates()
                             parseInt(run_date_strs[i].substring(10, 12)))
         ));
     }
+    dates = dates.filter(function(d) {return valid_init_hours.includes(d.getUTCHours());});
     dates = dates.reverse();
     return dates;
 }
@@ -99,7 +100,14 @@ function filter_time_and_mode(valid_time, mode, time_arr, mode_arr, index_arr, d
         Object.keys(data_arr).forEach(function(col) {selected_data[col].push(data_arr[col][t]);});
         let hover_str = "S: " + data_arr[sel_model + "_Supercell_prob"][t].toFixed(2) + " ";
         hover_str += "L: " + data_arr[sel_model + "_QLCS_prob"][t].toFixed(2) + " ";
-        hover_str += "D: "  + data_arr[sel_model + "_Disorganized_prob"][t].toFixed(2);
+        hover_str += "D: "  + data_arr[sel_model + "_Disorganized_prob"][t].toFixed(2) + " ";
+        hover_str += "UH: " + data_arr["MXUPHL_1hr_max_fcst-5000_2000m_above_ground_max"][t].toFixed(0) + " ";
+        //hover_str += "CAPE: " + data_arr["CAPE-0_3000m_above_ground-potential_max"][t].toFixed(0) + " ";
+        let shear_mag = (data_arr["VUCSH-0_6000m_above_ground-potential_mean"][t] ** 2 +
+            data_arr["VVCSH-0_6000m_above_ground-potential_mean"][t] ** 2) ** 0.5;
+        hover_str += "Shear: " + shear_mag.toFixed(0) + " ";
+
+
         selected_data["hovertext"].push(hover_str);
 
     });

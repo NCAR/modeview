@@ -9,18 +9,14 @@
 <script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
 <script src="stormdata.js"></script>
 <script>
-    let mode_probs, modes, mode_colors, layout, plot_data, prob_col;
+    let mode_probs, modes, mode_colors, layout, plot_data;
     model_map = {0: "CNN_1", 1: "DNN_1", 2: "SS"};
-    modes = ["Supercell", "QLCS", "Disorganized"];
-    mode_colors = {Supercell: "YlOrRd", QLCS: "YlGnBu", Disorganized: "Greys"};
-    let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour, sel_model, sel_mode, valid_time;
+    modes = ["Disorganized", "QLCS", "Supercell"];
+    mode_colors = {Supercell: "YlOrRd", QLCS: "Blues", Disorganized: "Greens"};
+    let hrrr_json, hrrr_objs, run_dates, sel_date, sel_forecast_hour, sel_model, valid_time;
 
     async function init() {
-        //let start_date_str = "2022-04-01T00:00:00+00:00";
-        //let end_date_str = new Date(Date.now() - 3 * 3600000).toUTCString();
-        let time_diff_hours = 12;
         sel_forecast_hour = 1;
-        //run_dates = date_range(start_date_str, end_date_str, time_diff_hours);
         run_dates = await read_valid_dates();
         let date_sel = document.getElementById("date_sel");
         run_dates.forEach(function(rd) {
@@ -40,12 +36,12 @@
                 prev_time();
             }}, false);
         layout = {
-                  height: 600,
-                  width: 800,
+                  height: 700,
+                  width: 1200,
                   margin: {t: 50, l: 20, b: 20, r: 20},
                   title: "HRRR Machine Learning Storm Mode",
-                  mapbox: {center: {lon: -96, lat: 34},
-                            zoom: 3,
+                  mapbox: {center: {lon: -96, lat: 40},
+                            zoom: 3.5,
                             style: "open-street-map",
                             }};
         load_json();
@@ -101,7 +97,7 @@
                 customdata: mode_probs_sel[mode]["hovertext"],
                 hovertemplate: template_str,
                 colorbar: {y: c_bar_y, len:0.3, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
-                title: {text: "Probability of " + mode, side: "right"}}});
+                title: {text: mode + " Probability", side: "right"}}});
             c_bar_y += 0.3;
         });
         Plotly.react(document.getElementById("mapview"), plot_data, layout);
@@ -193,16 +189,13 @@
         <option value="1">Model 2</option>
         <option value="2">Model 3</option>
     </select>
-    <br>
-    <br>
-    <label for="fh">Forecast Hour: </label><label id="fh">1</label>
+</div>
+<div id="mapview">
+</div>
+<div id="hourbar">
     <button id="prev_hour" onclick="prev_time()">-1 Hour</button>
+    <label for="fh">Forecast Hour: </label><label id="fh">1</label>
     <button id="next_hour" onclick="next_time()">+1 Hour</button>
 </div>
-<div id="mapholder">
-    <div id="mapview">
-    </div>
-</div>
-
 </body>
 </html>
