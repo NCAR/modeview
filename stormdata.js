@@ -98,10 +98,10 @@ function filter_time_and_mode(valid_time, mode, time_arr, mode_arr, index_arr, d
     Object.keys(data_arr).forEach(function(col) {selected_data[col] = [];});
     selected_data["index"].forEach(function (t)  {
         Object.keys(data_arr).forEach(function(col) {selected_data[col].push(data_arr[col][t]);});
-        let hover_str = "S: " + data_arr[sel_model + "_Supercell_prob"][t].toFixed(2) + " ";
-        hover_str += "L: " + data_arr[sel_model + "_QLCS_prob"][t].toFixed(2) + " ";
-        hover_str += "D: "  + data_arr[sel_model + "_Disorganized_prob"][t].toFixed(2) + " ";
-        hover_str += "UH: " + data_arr["MXUPHL_1hr_max_fcst-5000_2000m_above_ground_max"][t].toFixed(0) + " ";
+        let hover_str = "S: " + data_arr[sel_model + "_Supercell_prob"][t].toFixed(2) + "<br>";
+        hover_str += "L: " + data_arr[sel_model + "_QLCS_prob"][t].toFixed(2) + "<br>";
+        hover_str += "D: "  + data_arr[sel_model + "_Disorganized_prob"][t].toFixed(2) + "<br>";
+        hover_str += "UH: " + data_arr["MXUPHL_1hr_max_fcst-5000_2000m_above_ground_max"][t].toFixed(0) + "<br>";
         //hover_str += "CAPE: " + data_arr["CAPE-0_3000m_above_ground-potential_max"][t].toFixed(0) + " ";
         let shear_mag = (data_arr["VUCSH-0_6000m_above_ground-potential_mean"][t] ** 2 +
             data_arr["VVCSH-0_6000m_above_ground-potential_mean"][t] ** 2) ** 0.5;
