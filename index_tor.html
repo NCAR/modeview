@@ -55,20 +55,26 @@
     {
         let tor_json_filename = "unet_tor_0000_ENS_MEM_1.geojson"
         let tor_json = await d3.json(tor_json_filename)
-        tor_objs = [];
-        tor_probs = [];
+        let tor_objs = [];
+        let tor_probs = [];
+        let sel_tor_objs = [];
+        let sel_tor_probs = [];
         for (let i=0; i<tor_json.features.length; i++)
         {
             tor_json.features[i].id = String(i);
             tor_objs[i] = String(i);
             tor_probs[i] = tor_json.features[i]["properties"]["intensity"];
+            if (tor_json.feature[i]["properties"]["time"] === "2019-05-21T00:15:00") {
+                sel_tor_objs.push(String(i));
+                sel_tor_probs.push(tor_probs[i]);
+            }
         }
         plot_data_tor = {type: "choroplethmapbox",
                 name: "Tornado Probability",
                 geojson: tor_json,
                 featureidkey: "id",
-                locations: tor_objs,
-                z: tor_probs,
+                locations: sel_tor_objs,
+                z: sel_tor_probs,
                 zmin: 0, zmax: 1,
                 reversescale: true,
                 marker: {opacity: 0.7},
