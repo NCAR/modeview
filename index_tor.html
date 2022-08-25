@@ -64,7 +64,7 @@
             tor_probs[i] = tor_json.features[i]["properties"]["intensity"];
         }
         plot_data_tor = {type: "choroplethmapbox",
-                name: mode,
+                name: "Tornado Probability",
                 geojson: tor_json,
                 featureidkey: "id",
                 locations: tor_objs,
