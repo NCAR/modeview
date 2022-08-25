@@ -64,7 +64,7 @@
             tor_json.features[i].id = String(i);
             tor_objs[i] = String(i);
             tor_probs[i] = tor_json.features[i]["properties"]["intensity"];
-            if (tor_json.feature[i]["properties"]["time"] === "2019-05-21T00:15:00") {
+            if (tor_json.features[i]["properties"]["time"] === "2019-05-21T00:15:00") {
                 sel_tor_objs.push(String(i));
                 sel_tor_probs.push(tor_probs[i]);
             }
