@@ -51,6 +51,11 @@
     {
         sel_model = model_map[parseInt(document.getElementById("model_sel").value)];
     }
+    async function load_tor()
+    {
+        let tor_json_filename = ""
+        let tor_json = await d3.json(
+    }
 
     async function load_json()
     {
