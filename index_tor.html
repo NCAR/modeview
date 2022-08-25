@@ -76,7 +76,7 @@
                 showscale: true,
                 colorbar: {y: 0.1, len:0.3, yanchor: "bottom", thickness: 0.03, thicknessmode: "fraction",
                 title: {text: " Tornado Probability", side: "right"}}}; 
-        Plotly.react(document.getElementById("mapview"), plot_data_tor, layout);
+        Plotly.react(document.getElementById("mapview"), [plot_data_tor], layout);
     }
 
     async function load_json()
